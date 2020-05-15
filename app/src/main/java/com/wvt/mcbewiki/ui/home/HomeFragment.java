@@ -10,6 +10,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.text.Html;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -31,20 +33,37 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
+import com.wvt.mcbewiki.MainActivity;
 import com.wvt.mcbewiki.R;
+import com.wvt.mcbewiki.others.Algorithm;
+import com.wvt.mcbewiki.others.FinalValue;
+import com.wvt.mcbewiki.others.HttpUtil;
+import com.wvt.mcbewiki.others.WikiUtil;
+import com.wvt.mcbewiki.ui.views.LollipopFixedWebView;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 
 import static android.app.Activity.RESULT_OK;
 import static android.content.Context.DOWNLOAD_SERVICE;
 
 public class HomeFragment extends Fragment {
-    WebView webView;
+    LollipopFixedWebView webView;
     boolean isFresh = false;
     LinearLayout rootLayout;
     private ValueCallback<Uri> uploadMessage;
     private ValueCallback<Uri[]> uploadMessageAboveL;
     private final static int FILE_CHOOSER_RESULT_CODE = 10000;
     private ProgressBar progressBar;
+    MainActivity mainActivity;
 
     @Nullable
     @Override
@@ -58,6 +77,7 @@ public class HomeFragment extends Fragment {
         webView = view.findViewById(R.id.wiki_web_view);
         progressBar = view.findViewById(R.id.progressBar);
         rootLayout = view.findViewById(R.id.forumfragment_root_layout);
+        mainActivity = (MainActivity) getActivity();
         // WebView Settings
         webView.getSettings().setBuiltInZoomControls(false); // Hide built-in zoom
         webView.getSettings().setSupportZoom(true); // Support zoom
@@ -65,13 +85,15 @@ public class HomeFragment extends Fragment {
         webView.getSettings().setJavaScriptEnabled(true); // Enable JavaScript Support
         webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
         webView.getSettings().setDomStorageEnabled(true);
-        webView.getSettings().setUserAgentString("-APP"); // Custom User Agent
+        webView.getSettings().setUserAgentString("User-Agent:Mozilla/5.0(Linux;U;Android2.2.1;zh-cn;HTC_Wildfire_A3333Build/FRG83D)AppleWebKit/533.1(KHTML,likeGecko)Version/4.0MobileSafari/533.1"); // Custom User Agent
         webView.setBackgroundColor(getResources().getColor(android.R.color.white));
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient());
         webView.setScrollBarStyle(WebView.SCROLLBARS_OUTSIDE_OVERLAY); // Required for Froyo
         webView.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        webView.setHorizontalScrollBarEnabled(false);
         webView.loadUrl("https://wiki.adodoz.cn");
+
         webView.setWebViewClient(new WebViewClient(){
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
@@ -138,6 +160,29 @@ public class HomeFragment extends Fragment {
             }
             return false;
         });
+
+
+        new Thread(() -> {
+            try {
+                JSONObject data = WikiUtil.getPageData(FinalValue.mainPageName, "", false);
+                mainActivity.runOnUiThread(() -> {
+                    new MaterialAlertDialogBuilder(mainActivity)
+                            .setMessage(data.toString())
+                            .create().show();
+                    try {
+                        showHtmlPage(webView, data);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                });
+
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+        }).start();
+
+
     }
     // 3.选择图片后处理
     @Override
@@ -190,6 +235,28 @@ public class HomeFragment extends Fragment {
         }
         uploadMessageAboveL.onReceiveValue(results);
         uploadMessageAboveL = null;
+    }
+
+    private void showHtmlPage(LollipopFixedWebView webView, JSONObject jsonObject) throws JSONException {
+        if (!jsonObject.isNull("batchcomplete") && jsonObject.getBoolean("batchcomplete")){
+
+
+
+            JSONObject query = jsonObject.getJSONObject("query");
+            JSONArray pages = query.getJSONArray("pages");
+            JSONObject pageObject = pages.getJSONObject(0);
+            mainActivity.getSupportActionBar().setTitle(pageObject.getString("title"));
+//            data = data.replaceAll("width=\"\\d+\"", "width=\"100%\"").replaceAll("height=\"\\d+\"", "height=\"auto\"");
+            String html = pageObject.getJSONArray("revisions").getJSONObject(0).getString("content");
+            webView.loadDataWithBaseURL(FinalValue.wikiUrl, FinalValue.headInfo + html, "text/html", "UTF-8", null);
+            Algorithm.copyToClipboard(mainActivity, html);
+            //自适应屏幕
+            webView.getSettings().setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
+            webView.getSettings().setLoadWithOverviewMode(true);
+
+
+
+        } else mainActivity.print("加载页面失败！", Snackbar.LENGTH_SHORT);
     }
 
     private void openImageChooserActivity() {

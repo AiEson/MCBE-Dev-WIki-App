@@ -1,6 +1,7 @@
 package com.wvt.mcbewiki;
 
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.View;
 import android.view.Menu;
 
@@ -20,6 +21,8 @@ import androidx.navigation.ui.NavigationUI;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+
+import java.io.File;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -63,12 +66,6 @@ public class MainActivity extends AppCompatActivity {
 
             return true;
         });
-
-
-
-
-
-
 
 
 

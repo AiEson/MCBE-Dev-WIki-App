@@ -18,6 +18,7 @@
     <com.wvt.mcbewiki.ui.views.LollipopFixedWebView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:overScrollMode="never"
         android:id="@+id/wiki_web_view" />
 
 </LinearLayout>
